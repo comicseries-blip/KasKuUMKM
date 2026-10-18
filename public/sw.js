@@ -1,5 +1,8 @@
-const CACHE_NAME = 'kasku-umkm-v2'
-const APP_SHELL = ['/', '/index.html', '/manifest.webmanifest', '/icon.svg', '/icon-192.png', '/icon-512.png']
+const CACHE_NAME = 'kasku-umkm-v3'
+const BASE = self.registration.scope
+const INDEX = new URL('index.html', BASE).href
+const APP_SHELL = ['', 'index.html', 'manifest.webmanifest', 'icon.svg', 'icon-192.png', 'icon-512.png']
+  .map((p) => new URL(p, BASE).href)
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(APP_SHELL)).then(() => self.skipWaiting()))
@@ -18,16 +21,16 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(request.url)
   if (request.method !== 'GET' || url.origin !== self.location.origin) return
 
-  // Navigasi menggunakan jaringan dahulu agar deployment baru tidak tertahan HTML lama.
+  // Navigasi: jaringan dahulu agar deployment baru tidak tertahan HTML lama.
   if (request.mode === 'navigate') {
     event.respondWith(fetch(request).then((response) => {
-      if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put('/index.html', response.clone()))
+      if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(INDEX, response.clone()))
       return response
-    }).catch(async () => (await caches.match('/index.html')) || Response.error()))
+    }).catch(async () => (await caches.match(INDEX)) || Response.error()))
     return
   }
 
-  // Asset statis: cache-first, lalu simpan salinan jaringan yang berhasil.
+  // Asset statis: cache dahulu, lalu simpan salinan jaringan yang berhasil.
   event.respondWith(caches.match(request).then((cached) => cached || fetch(request).then((response) => {
     if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(request, response.clone()))
     return response
